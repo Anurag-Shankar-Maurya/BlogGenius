@@ -73,7 +73,7 @@ const AdminPage = ({ onPostGenerated }: { onPostGenerated: (postData: Omit<BlogP
       const textPrompt = `Write a detailed and engaging blog post about "${prompt}". The post must start with a title formatted as a Markdown H1 (e.g., "# My Title"). Follow the title with an introduction, several well-structured sections with H2 headings, and a concluding summary. The entire response must be in Markdown format.`;
       
       const textResponse = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
+        model: 'gemini-2.5-flash-lite',
         contents: textPrompt,
       });
       
