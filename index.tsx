@@ -117,33 +117,44 @@ const AdminPage = ({ onPostGenerated }: { onPostGenerated: (postData: Omit<BlogP
             contents,
           });
 
-          let imageUrl = '';
+          let generatedImageUrl = ''; // Changed variable name to avoid conflict
           
           // Process the streamed response
           for await (const chunk of response) {
-            if (!chunk.candidates || !chunk.candidates.content || !chunk.candidates.content.parts) {
+            if (!chunk.candidates || !chunk.candidates[0]?.content?.parts) {
               continue;
             }
             
-            // Check if this chunk contains image data
-            if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
-              const inlineData = chunk.candidates.content.parts.inlineData;
-              
-              // Convert base64 data to data URL
-              imageUrl = `data:${inlineData.mimeType};base64,${inlineData.data}`;
-              setGeneratedImagePreview(imageUrl);
-              break; // Exit loop once image is found
+            // Check all parts in the response for image data
+            const parts = chunk.candidates[0].content.parts;
+            
+            for (const part of parts) {
+              if (part.inlineData) {
+                // Convert base64 data to data URL
+                generatedImageUrl = `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+                setGeneratedImagePreview(generatedImageUrl);
+                console.log('Image generated successfully, length:', generatedImageUrl.length); // Debug log
+                break;
+              }
+            }
+            
+            // If we found an image, exit the main loop
+            if (generatedImageUrl) {
+              break;
             }
           }
           
-          if (!imageUrl) {
-            throw new Error('No image generated in response');
+          if (generatedImageUrl) {
+            imageUrl = generatedImageUrl; // Update the outer scope imageUrl
+          } else {
+            console.warn('No image generated, using placeholder');
+            // Keep the placeholder URL
           }
           
         } catch (error) {
           console.error('Error generating image:', error);
-          setNotification('Error generating image. Please try again.');
-          throw error;
+          setNotification('Error generating image. Using placeholder.');
+          // Keep the placeholder URL that was set earlier
         }
       }
       
