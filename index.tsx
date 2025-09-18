@@ -88,21 +88,63 @@ const AdminPage = ({ onPostGenerated }: { onPostGenerated: (postData: Omit<BlogP
       // Step 2: Generate image if requested
       if (generateImage) {
         setNotification('Text generated. Now creating image...');
+        
         const imagePrompt = `A professional and visually appealing featured image for a blog post titled: "${title}". The image should be high-quality and relevant to the topic.`;
         
-        const imageResponse = await ai.models.generateImages({
-            model: 'imagen-4.0-generate-001',
-            prompt: imagePrompt,
-            config: {
-              numberOfImages: 1,
-              outputMimeType: 'image/jpeg',
-              aspectRatio: '16:9',
+        try {
+          const config = {
+            responseModalities: [
+              'IMAGE',
+              'TEXT',
+            ],
+          };
+          
+          const model = 'gemini-2.0-flash-preview-image-generation';
+          const contents = [
+            {
+              role: 'user',
+              parts: [
+                {
+                  text: imagePrompt,
+                },
+              ],
             },
-        });
+          ];
 
-        const base64ImageBytes: string = imageResponse.generatedImages[0].image.imageBytes;
-        imageUrl = `data:image/jpeg;base64,${base64ImageBytes}`;
-        setGeneratedImagePreview(imageUrl);
+          const response = await ai.models.generateContentStream({
+            model,
+            config,
+            contents,
+          });
+
+          let imageUrl = '';
+          
+          // Process the streamed response
+          for await (const chunk of response) {
+            if (!chunk.candidates || !chunk.candidates.content || !chunk.candidates.content.parts) {
+              continue;
+            }
+            
+            // Check if this chunk contains image data
+            if (chunk.candidates?.[0]?.content?.parts?.[0]?.inlineData) {
+              const inlineData = chunk.candidates.content.parts.inlineData;
+              
+              // Convert base64 data to data URL
+              imageUrl = `data:${inlineData.mimeType};base64,${inlineData.data}`;
+              setGeneratedImagePreview(imageUrl);
+              break; // Exit loop once image is found
+            }
+          }
+          
+          if (!imageUrl) {
+            throw new Error('No image generated in response');
+          }
+          
+        } catch (error) {
+          console.error('Error generating image:', error);
+          setNotification('Error generating image. Please try again.');
+          throw error;
+        }
       }
       
       const postData = {
